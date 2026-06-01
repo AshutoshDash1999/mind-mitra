@@ -14,8 +14,35 @@ class EmotionResponse(BaseModel):
 
 router = APIRouter()
 
-@router.post('/emotion', response_model=EmotionResponse)
+@router.post('/emotion', summary="Detect emotion from text or image", response_model=EmotionResponse, openapi_examples={
+    "example1": {
+        "description": "Detect emotion from text",
+        "value": {
+            "text": "I feel so sad and hopeless",
+            "image_base64": None
+        }
+    },
+    "example2": {
+        "description": "Detect emotion from image",
+        "value": {
+            "text": None,
+            "image_base64": "iVBORw0KGgoAAAANSUhE........................"
+        }
+    }
+})
 def detect_emotion(request: EmotionRequest, current_user: User = Depends(get_current_user)):
+    """Detect emotion from provided text or base64-encoded image.
+
+    Enter the follwoing paramteres while sending the request
+    text: Optional- string
+    image_base64: Optional- string
+
+    Response model: `EmotionResponse`
+    emotion: string
+    confidence: float
+
+    
+    """
     # If image is provided, stub: always return 'happy' for demo
     if request.image_base64:
         return EmotionResponse(emotion='happy', confidence=0.92)
