@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from typing import Optional
 
@@ -11,7 +11,7 @@ logger = get_logger("auth_endpoints")
 router = APIRouter()
 
 # OAuth2 scheme for token authentication
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
@@ -37,18 +37,36 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
         raise credentials_exception
 
 
-@router.post("/register", summary="Register a new user", response_model=User, openapi_examples={
-    "example1": {
-        "description": "Register a new user",
-        "value": {
-            "email": "user@example.com",
-            "name": "Marina Sharma",
-            "role": "user",
-            "password": "marina@123"
+@router.post(
+    "/register",
+    summary="Register a new user",
+    response_model=User,
+    responses={
+        200: {
+            "description": "User registered successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "id": 1,
+                        "email": "user@example.com",
+                        "password_hash": "$2b$12$...",
+                        "name": "Marina Sharma",
+                        "created_at": "2024-06-02T12:00:00Z"
+                    }
+                }
+            }
         }
     }
-})
-async def register(user_create: UserCreate):
+)
+async def register(user_create: UserCreate = Body(
+    ...,
+    example={
+        "email": "user@example.com",
+        "name": "Marina Sharma",
+        "role": "user",
+        "password": "marina@123"
+    }
+)):
     """Register a new user and enter the following details:
         Email,
         Name,
@@ -84,15 +102,43 @@ async def register(user_create: UserCreate):
         )
 
 
-@router.post("/login", summary="Login user and return access token", response_model=Token, openapi_examples={
-    "example1": {
-        "description": "User login with email and password",
-        "value": {
-            "username": "user@example.com",
-            "password": "user@123"
+@router.post(
+    "/login",
+    summary="Login user and return access token",
+    response_model=Token,
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/x-www-form-urlencoded": {
+                    "examples": {
+                        "login": {
+                            "summary": "Login example",
+                            "value": {
+                                "username": "user@example.com",
+                                "password": "SecurePass123"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "responses": {
+            "200": {
+                "description": "Login successful",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                            "token_type": "bearer",
+                            "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                            "expires_in": 1800
+                        }
+                    }
+                }
+            }
         }
     }
-})
+)
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     """Login user and enter the following details:
         Email,
@@ -138,15 +184,30 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         )
 
 
-@router.post("/refresh", summary="Refresh access token", response_model=Token, openapi_examples={
-    "example1": {
-        "description": "Refresh access token using refresh token",
-        "value": {
-            "refresh_token": "some xyz string token"
+@router.post(
+    "/refresh",
+    summary="Refresh access token",
+    response_model=Token,
+    responses={
+        200: {
+            "description": "New token pair returned",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                        "token_type": "bearer",
+                        "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                        "expires_in": 1800
+                    }
+                }
+            }
         }
     }
-})
-async def refresh_token(refresh_token: str):
+)
+async def refresh_token(refresh_token: str = Body(
+    ...,
+    example="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+)):
     """Refresh access token using refresh token:
         Enter the refresh access token generated after revisting or refreshing the page after
         Note: This is different from the login access token"""
@@ -191,32 +252,49 @@ async def refresh_token(refresh_token: str):
         )
 
 
-@router.get("/profile", summary="Get current user profile", response_model=User, openapi_examples={
-    "example1": {
-        "description": "Current user profile response",
-        "value": {
-            "id": 1,
-            "email": "user@example.com",
-            "password_hash": "$2b$12$...",
-            "name": "Sofie dsouza",
-            "created_at": "2024-01-15T10:30:00Z"
+@router.get(
+    "/profile",
+    summary="Get current user profile",
+    response_model=User,
+    responses={
+        200: {
+            "description": "Current authenticated user profile",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "id": 1,
+                        "email": "user@example.com",
+                        "password_hash": "$2b$12$...",
+                        "name": "Sofie dsouza",
+                        "created_at": "2024-01-15T10:30:00Z"
+                    }
+                }
+            }
         }
     }
-})
+)
 async def get_profile(current_user: User = Depends(get_current_user)):
     """Get current user profile and enter the following details:
         Authorization: Bearer <access_token>"""
     return current_user
 
 
-@router.post("/logout", summary="Logout user", openapi_examples={
-    "example1": {
-        "description": "Successful logout response",
-        "value": {
-            "message": "Successfully logged out"
+@router.post(
+    "/logout",
+    summary="Logout user",
+    responses={
+        200: {
+            "description": "Successfully logged out",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "message": "Successfully logged out"
+                    }
+                }
+            }
         }
     }
-})
+)
 async def logout(current_user: User = Depends(get_current_user)):
     """Logout user and enter the following details:
         Authorization: Bearer <access_token>"""

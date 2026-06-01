@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Body, Depends
 from pydantic import BaseModel
 from app.services.auth import get_current_user
 from app.models.user import User
@@ -14,23 +14,43 @@ class EmotionResponse(BaseModel):
 
 router = APIRouter()
 
-@router.post('/emotion', summary="Detect emotion from text or image", response_model=EmotionResponse, openapi_examples={
-    "example1": {
-        "description": "Detect emotion from text",
-        "value": {
-            "text": "I feel so sad and hopeless",
-            "image_base64": None
-        }
-    },
-    "example2": {
-        "description": "Detect emotion from image",
-        "value": {
-            "text": None,
-            "image_base64": "iVBORw0KGgoAAAANSUhE........................"
+@router.post(
+    '/emotion',
+    summary="Detect emotion from text or image",
+    response_model=EmotionResponse,
+    responses={
+        200: {
+            "description": "Emotion detection result",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "emotion": "sad",
+                        "confidence": 0.95
+                    }
+                }
+            }
         }
     }
-})
-def detect_emotion(request: EmotionRequest, current_user: User = Depends(get_current_user)):
+)
+def detect_emotion(request: EmotionRequest = Body(
+    ...,
+    examples={
+        "textExample": {
+            "summary": "Text emotion detection",
+            "value": {
+                "text": "I feel so sad and hopeless",
+                "image_base64": None
+            }
+        },
+        "imageExample": {
+            "summary": "Image emotion detection",
+            "value": {
+                "text": None,
+                "image_base64": "iVBORw0KGgoAAAANSUhE..."
+            }
+        }
+    }
+), current_user: User = Depends(get_current_user)):
     """Detect emotion from provided text or base64-encoded image.
 
     Enter the follwoing paramteres while sending the request
