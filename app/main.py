@@ -28,8 +28,13 @@ tags_metadata = [
     {
         "name": "journal",
         "description": "Journal management endpoints. These routes are protected and require authentication."
+    },
+    {
+        "name": "sos",
+        "description": "Emergency SOS alert endpoints. Sends an SMS to the user's pre-configured emergency contact via Twilio with a 30-minute cooldown."
     }
 ]
+ 
 
 
 @asynccontextmanager
