@@ -13,7 +13,10 @@ from app.core.database import init_db, close_db
 from app.core.redis import init_redis, close_redis, ping_redis
 from app.api.v1.api import api_router
 from app.core.logging import setup_logging
-from app.core.middleware import RequestLoggingMiddleware
+from app.core.middleware import RequestLoggingMiddleware, limiter
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 
 tags_metadata = [
@@ -63,6 +66,20 @@ app = FastAPI(
     lifespan=lifespan,
     openapi_tags=tags_metadata,
 )
+
+# Rate limiting
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request, exc):
+    retry_after = (exc.headers or {}).get("Retry-After", "60")
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=429,
+        headers={"Retry-After": retry_after},
+        content={"error": "rate_limit_exceeded", "message": f"Too many requests. Retry after {retry_after} seconds.", "retry_after": int(retry_after)}
+    )
 
 # Security middleware
 app.add_middleware(
