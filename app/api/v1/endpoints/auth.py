@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from fastapi import APIRouter, Body, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Body, Depends, File, HTTPException, Request, UploadFile, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from typing import Optional
 
@@ -20,6 +20,7 @@ from app.models.user import (
 from app.services.auth import auth_service
 from app.services.notifications import notification_service
 from app.core.logging import get_logger
+from app.core.middleware import limiter
 
 PASSWORD_RESET_RESPONSE = (
     "If an account exists for this email, a reset link has been sent."
@@ -89,7 +90,9 @@ async def get_current_admin(current_user: User = Depends(get_current_user)) -> U
         }
     }
 )
+@limiter.limit("5/minute")
 async def register(
+    request: Request,
     user_create: UserCreate = Body(
         ...,
         example={
@@ -172,7 +175,8 @@ async def register(
         }
     }
 )
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+@limiter.limit("5/minute")
+async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
     """Login user and enter the following details:
         Email,
         Password"""
@@ -237,7 +241,8 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         }
     }
 )
-async def refresh_token(refresh_token: str = Body(
+@limiter.limit("10/minute")
+async def refresh_token(request: Request, refresh_token: str = Body(
     ...,
     example="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 )):
